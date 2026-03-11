@@ -1,0 +1,77 @@
+{
+  "name": "UserSettings",
+  "type": "object",
+  "properties": {
+    "cefr_level": {
+      "type": "string",
+      "enum": [
+        "A1",
+        "A2",
+        "B1",
+        "B2"
+      ],
+      "description": "Current CEFR level"
+    },
+    "ib_year_group": {
+      "type": "string",
+      "enum": [
+        "MYP3",
+        "MYP4",
+        "MYP5",
+        "DP1",
+        "DP2"
+      ],
+      "description": "IB year group / class"
+    },
+    "theme": {
+      "type": "string",
+      "enum": [
+        "light",
+        "dark",
+        "system"
+      ],
+      "description": "UI theme preference"
+    },
+    "daily_goal_minutes": {
+      "type": "number",
+      "description": "Daily study goal in minutes"
+    },
+    "study_streak": {
+      "type": "number",
+      "description": "Current study streak in days"
+    },
+    "last_study_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Last date the user studied"
+    },
+    "vocab_retention_score": {
+      "type": "number",
+      "description": "Overall vocabulary retention percentage"
+    },
+    "grammar_accuracy_score": {
+      "type": "number",
+      "description": "Overall grammar accuracy percentage"
+    },
+    "pronunciation_score": {
+      "type": "number",
+      "description": "Overall pronunciation score"
+    },
+    "total_study_minutes": {
+      "type": "number",
+      "description": "Total minutes studied"
+    },
+    "weakest_areas": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of weakest grammar areas"
+    },
+    "onboarding_complete": {
+      "type": "boolean",
+      "description": "Whether initial onboarding is done"
+    }
+  },
+  "required": []
+}

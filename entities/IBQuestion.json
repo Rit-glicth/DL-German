@@ -1,0 +1,92 @@
+{
+  "name": "IBQuestion",
+  "type": "object",
+  "properties": {
+    "question_text": {
+      "type": "string"
+    },
+    "question_type": {
+      "type": "string",
+      "enum": [
+        "multiple_choice",
+        "fill_blank",
+        "short_answer",
+        "essay_prompt",
+        "text_analysis",
+        "listening_comp",
+        "gap_fill"
+      ],
+      "description": "IB exam question format"
+    },
+    "paper": {
+      "type": "string",
+      "enum": [
+        "Paper 1",
+        "Paper 2",
+        "Oral",
+        "Writing Task",
+        "Ab Initio"
+      ]
+    },
+    "cefr_level": {
+      "type": "string",
+      "enum": [
+        "A1",
+        "A2",
+        "B1",
+        "B2"
+      ]
+    },
+    "topic": {
+      "type": "string",
+      "description": "IB theme or grammar topic"
+    },
+    "ib_theme": {
+      "type": "string",
+      "enum": [
+        "Identities",
+        "Experiences",
+        "Human Ingenuity",
+        "Social Organisation",
+        "Sharing the Planet"
+      ],
+      "description": "IB Language B global theme"
+    },
+    "options": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "correct_answer": {
+      "type": "string"
+    },
+    "model_answer": {
+      "type": "string",
+      "description": "For essay/short answer - model response"
+    },
+    "mark_scheme": {
+      "type": "string",
+      "description": "What marks are awarded for"
+    },
+    "difficulty": {
+      "type": "number",
+      "description": "1-5 difficulty"
+    },
+    "source": {
+      "type": "string",
+      "description": "Origin - mock, teacher-created, adapted"
+    },
+    "explanation": {
+      "type": "string"
+    },
+    "grammar_focus": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "question_text",
+    "question_type",
+    "cefr_level"
+  ]
+}

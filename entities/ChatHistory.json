@@ -1,0 +1,64 @@
+{
+  "name": "ChatHistory",
+  "type": "object",
+  "properties": {
+    "session_id": {
+      "type": "string",
+      "description": "Unique conversation session ID"
+    },
+    "topic": {
+      "type": "string",
+      "description": "Conversation topic"
+    },
+    "grammar_focus": {
+      "type": "string",
+      "description": "Grammar target for this conversation"
+    },
+    "cefr_level": {
+      "type": "string",
+      "enum": [
+        "A1",
+        "A2",
+        "B1",
+        "B2"
+      ],
+      "description": "Difficulty level"
+    },
+    "messages": {
+      "type": "array",
+      "description": "Array of message objects",
+      "items": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "corrections": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "timestamp": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "errors_detected": {
+      "type": "number",
+      "description": "Total grammar errors found in session"
+    },
+    "grammar_score": {
+      "type": "number",
+      "description": "Overall grammar accuracy score"
+    }
+  },
+  "required": [
+    "session_id",
+    "cefr_level"
+  ]
+}

@@ -1,0 +1,72 @@
+{
+  "name": "Vocabulary",
+  "type": "object",
+  "properties": {
+    "german_word": {
+      "type": "string",
+      "description": "The German word"
+    },
+    "english_translation": {
+      "type": "string",
+      "description": "English translation"
+    },
+    "gender": {
+      "type": "string",
+      "enum": [
+        "der",
+        "die",
+        "das",
+        "n/a"
+      ],
+      "description": "Grammatical gender"
+    },
+    "word_type": {
+      "type": "string",
+      "enum": [
+        "noun",
+        "verb",
+        "adjective",
+        "adverb",
+        "preposition",
+        "conjunction",
+        "pronoun",
+        "other"
+      ],
+      "description": "Part of speech"
+    },
+    "cefr_level": {
+      "type": "string",
+      "enum": [
+        "A1",
+        "A2",
+        "B1",
+        "B2"
+      ],
+      "description": "CEFR difficulty level"
+    },
+    "example_sentence": {
+      "type": "string",
+      "description": "Example sentence using the word"
+    },
+    "example_translation": {
+      "type": "string",
+      "description": "Translation of the example sentence"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Topic tags like travel, food, school"
+    },
+    "difficulty_rating": {
+      "type": "number",
+      "description": "Difficulty from 1-10"
+    }
+  },
+  "required": [
+    "german_word",
+    "english_translation",
+    "cefr_level"
+  ]
+}

@@ -1,0 +1,66 @@
+{
+  "name": "GrammarError",
+  "type": "object",
+  "properties": {
+    "error_type": {
+      "type": "string",
+      "enum": [
+        "case_agreement",
+        "gender_mismatch",
+        "verb_conjugation",
+        "verb_position",
+        "article_error",
+        "tense_error",
+        "word_order",
+        "preposition_case",
+        "reflexive_verb",
+        "separable_verb",
+        "relative_clause",
+        "passive_voice",
+        "konjunktiv",
+        "other"
+      ],
+      "description": "Classification of the grammar error"
+    },
+    "grammar_category": {
+      "type": "string",
+      "enum": [
+        "A1",
+        "A2",
+        "B1",
+        "B2"
+      ],
+      "description": "CEFR category of the grammar rule"
+    },
+    "user_input": {
+      "type": "string",
+      "description": "What the user wrote"
+    },
+    "correct_form": {
+      "type": "string",
+      "description": "The correct version"
+    },
+    "explanation": {
+      "type": "string",
+      "description": "Why this is an error"
+    },
+    "context": {
+      "type": "string",
+      "enum": [
+        "writing",
+        "grammar_exercise",
+        "chat",
+        "pronunciation"
+      ],
+      "description": "Where the error occurred"
+    },
+    "frequency": {
+      "type": "number",
+      "description": "How many times this error type has occurred"
+    }
+  },
+  "required": [
+    "error_type",
+    "grammar_category"
+  ]
+}

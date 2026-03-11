@@ -1,0 +1,61 @@
+{
+  "name": "UserVocabProgress",
+  "type": "object",
+  "properties": {
+    "vocabulary_id": {
+      "type": "string",
+      "description": "Reference to Vocabulary item"
+    },
+    "german_word": {
+      "type": "string",
+      "description": "Cached German word for quick access"
+    },
+    "english_translation": {
+      "type": "string",
+      "description": "Cached translation"
+    },
+    "easiness_factor": {
+      "type": "number",
+      "description": "SM-2 easiness factor (default 2.5)"
+    },
+    "repetition_count": {
+      "type": "number",
+      "description": "Number of successful reviews"
+    },
+    "interval_days": {
+      "type": "number",
+      "description": "Days until next review"
+    },
+    "next_review_date": {
+      "type": "string",
+      "format": "date",
+      "description": "When this card should be reviewed"
+    },
+    "last_review_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Last review timestamp"
+    },
+    "total_reviews": {
+      "type": "number",
+      "description": "Total number of review attempts"
+    },
+    "correct_count": {
+      "type": "number",
+      "description": "Number of correct responses"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "new",
+        "learning",
+        "review",
+        "mastered"
+      ],
+      "description": "Current learning status"
+    }
+  },
+  "required": [
+    "vocabulary_id"
+  ]
+}

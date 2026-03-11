@@ -1,0 +1,56 @@
+{
+  "name": "LessonProgress",
+  "type": "object",
+  "properties": {
+    "lesson_type": {
+      "type": "string",
+      "enum": [
+        "vocabulary",
+        "grammar",
+        "listening",
+        "pronunciation",
+        "reading",
+        "conversation"
+      ],
+      "description": "Type of lesson"
+    },
+    "cefr_level": {
+      "type": "string",
+      "enum": [
+        "A1",
+        "A2",
+        "B1",
+        "B2"
+      ],
+      "description": "Lesson difficulty level"
+    },
+    "topic": {
+      "type": "string",
+      "description": "Grammar topic or vocabulary theme"
+    },
+    "score": {
+      "type": "number",
+      "description": "Score achieved (0-100)"
+    },
+    "time_spent_seconds": {
+      "type": "number",
+      "description": "Time spent on the lesson"
+    },
+    "errors_made": {
+      "type": "number",
+      "description": "Number of errors in this lesson"
+    },
+    "total_questions": {
+      "type": "number",
+      "description": "Total questions attempted"
+    },
+    "completed": {
+      "type": "boolean",
+      "description": "Whether lesson was completed"
+    }
+  },
+  "required": [
+    "lesson_type",
+    "cefr_level"
+  ]
+}

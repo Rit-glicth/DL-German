@@ -1,0 +1,103 @@
+{
+  "name": "GrammarNote",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "slug": {
+      "type": "string",
+      "description": "URL-friendly identifier"
+    },
+    "cefr_level": {
+      "type": "string",
+      "enum": [
+        "A1",
+        "A2",
+        "B1",
+        "B2"
+      ]
+    },
+    "ib_relevance": {
+      "type": "string",
+      "enum": [
+        "core",
+        "important",
+        "advanced"
+      ],
+      "description": "How critical for IB"
+    },
+    "ib_papers": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Which IB papers test this"
+    },
+    "content_markdown": {
+      "type": "string",
+      "description": "Full lesson in markdown with tables, examples"
+    },
+    "summary": {
+      "type": "string",
+      "description": "One-line summary"
+    },
+    "key_rules": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "common_mistakes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "youtube_videos": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "youtube_id": {
+            "type": "string"
+          },
+          "channel": {
+            "type": "string"
+          },
+          "level": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "external_links": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "order_index": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "title",
+    "cefr_level",
+    "content_markdown"
+  ]
+}
