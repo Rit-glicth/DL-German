@@ -1,279 +1,347 @@
-import React, { useRef } from "react";
+
+import React, { useState } from "react";
 import { cn } from "@/lib/utils";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from "recharts";
+import { base44 } from "@/api/base44Client";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Printer, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Loader2, Plus, BookOpen, Languages, GraduationCap, CheckCircle2 } from "lucide-react";
 
-const ERROR_LABELS = {
-  case_agreement: "Case",
-  gender_mismatch: "Gender",
-  verb_conjugation: "Conjugation",
-  verb_position: "Word Order",
-  article_error: "Articles",
-  tense_error: "Tense",
-  word_order: "Syntax",
-  preposition_case: "Prepositions",
-  reflexive_verb: "Reflexive",
-  separable_verb: "Separable",
-  relative_clause: "Rel. Clause",
-  passive_voice: "Passive",
-  konjunktiv: "Konjunktiv",
-  other: "Other",
-};
+export default function TeacherAddContent({ isDark, defaultTab }) {
+  const qc = useQueryClient();
+  const [tab, setTab] = useState(defaultTab || "vocab");
+  const [success, setSuccess] = useState(null);
 
-export default function StudentReportPrint({ user, settings, lessons, errors, vocab, isDark, onClose }) {
-  const printRef = useRef();
+  // Vocab form
+  const [vocab, setVocab] = useState({
+    german_word: "", english_translation: "", gender: "n/a",
+    word_type: "noun", cefr_level: "B1", example_sentence: "", example_translation: "", tags: ""
+  });
 
-  const totalMinutes = Math.round(lessons.reduce((s, l) => s + (l.time_spent_seconds || 0) / 60, 0));
-  const masteredVocab = vocab.filter(v => v.status === "mastered").length;
-  const avgScore = lessons.length > 0 ? Math.round(lessons.reduce((s, l) => s + (l.score || 0), 0) / lessons.length) : 0;
-  const completedLessons = lessons.filter(l => l.completed).length;
+  // Grammar note form
+  const [grammar, setGrammar] = useState({
+    title: "", cefr_level: "B1", ib_relevance: "core", summary: "", content_markdown: "",
+    key_rules: "", common_mistakes: ""
+  });
 
-  // Error breakdown
-  const errorCounts = {};
-  errors.forEach(e => { errorCounts[e.error_type] = (errorCounts[e.error_type] || 0) + 1; });
-  const errorData = Object.entries(errorCounts)
-    .map(([k, v]) => ({ subject: ERROR_LABELS[k] || k, count: v }))
-    .sort((a, b) => b.count - a.count).slice(0, 8);
+  // IB Question form
+  const [ibq, setIbq] = useState({
+    question_text: "", question_type: "multiple_choice", paper: "Paper 1",
+    cefr_level: "B1", ib_theme: "Identities", topic: "",
+    options: ["", "", "", ""], correct_answer: "", mark_scheme: "", difficulty: 3
+  });
 
-  // Lesson type breakdown
-  const lessonTypes = {};
-  lessons.forEach(l => { lessonTypes[l.lesson_type] = (lessonTypes[l.lesson_type] || 0) + (l.time_spent_seconds || 0) / 60; });
-  const lessonData = Object.entries(lessonTypes).map(([k, v]) => ({ name: k, minutes: Math.round(v) }));
+  const [generating, setGenerating] = useState(false);
 
-  // Vocab status
-  const vocabStatus = { new: 0, learning: 0, review: 0, mastered: 0 };
-  vocab.forEach(v => { vocabStatus[v.status] = (vocabStatus[v.status] || 0) + 1; });
-
-  // Radar data for skills
-  const radarData = [
-    { skill: "Grammar", value: settings?.grammar_accuracy_score || 0 },
-    { skill: "Vocab", value: settings?.vocab_retention_score || 0 },
-    { skill: "Pronunciation", value: settings?.pronunciation_score || 0 },
-    { skill: "Avg Score", value: avgScore },
-  ];
-
-  const handlePrint = () => {
-    const printContents = printRef.current.innerHTML;
-    const win = window.open("", "_blank");
-    win.document.write(`
-      <html>
-        <head>
-          <title>Student Report - ${user.full_name || user.email}</title>
-          <style>
-            body { font-family: system-ui, sans-serif; margin: 24px; color: #0f172a; background: white; }
-            h1 { font-size: 22px; font-weight: 700; margin: 0 0 4px; }
-            h2 { font-size: 16px; font-weight: 600; margin: 20px 0 10px; color: #334155; }
-            h3 { font-size: 13px; font-weight: 600; margin: 0 0 8px; color: #475569; }
-            .meta { color: #64748b; font-size: 13px; margin-bottom: 20px; }
-            .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 16px 0; }
-            .stat-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 16px; }
-            .stat-val { font-size: 22px; font-weight: 700; color: #0f172a; }
-            .stat-lbl { font-size: 11px; color: #94a3b8; margin-top: 2px; }
-            .badge { display: inline-block; background: #dbeafe; color: #2563eb; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; }
-            .section { border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin: 12px 0; }
-            .error-row { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; font-size: 12px; border-bottom: 1px solid #f1f5f9; }
-            .bar { height: 8px; background: #f43f5e; border-radius: 4px; }
-            .lesson-row { display: flex; justify-content: space-between; font-size: 12px; padding: 4px 8px; background: #f8fafc; border-radius: 6px; margin-bottom: 4px; }
-            .vocab-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; }
-            .vocab-item { background: #f8fafc; border-radius: 8px; padding: 8px; text-align: center; border: 1px solid #e2e8f0; }
-            .vocab-num { font-size: 18px; font-weight: 700; }
-            .vocab-lbl { font-size: 11px; color: #94a3b8; }
-            .weaknesses { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-            .weakness-tag { background: #fef2f2; color: #ef4444; font-size: 11px; padding: 2px 8px; border-radius: 6px; }
-            @media print { body { margin: 0; } }
-          </style>
-        </head>
-        <body>${printContents}</body>
-      </html>
-    `);
-    win.document.close();
-    win.focus();
-    setTimeout(() => { win.print(); win.close(); }, 500);
+  const showSuccess = (msg) => {
+    setSuccess(msg);
+    setTimeout(() => setSuccess(null), 3000);
   };
 
-  const maxErrorCount = Math.max(...errorData.map(e => e.count), 1);
+  const addVocab = useMutation({
+    mutationFn: (d) => base44.entities.Vocabulary.create(d),
+    onSuccess: () => {
+      qc.invalidateQueries(["vocab"]);
+      setVocab({ german_word: "", english_translation: "", gender: "n/a", word_type: "noun", cefr_level: "B1", example_sentence: "", example_translation: "", tags: "" });
+      showSuccess("Vocabulary word added!");
+    }
+  });
+
+  const addGrammar = useMutation({
+    mutationFn: (d) => base44.entities.GrammarNote.create(d),
+    onSuccess: () => {
+      qc.invalidateQueries(["grammarNotes"]);
+      setGrammar({ title: "", cefr_level: "B1", ib_relevance: "core", summary: "", content_markdown: "", key_rules: "", common_mistakes: "" });
+      showSuccess("Grammar note added!");
+    }
+  });
+
+  const addIbq = useMutation({
+    mutationFn: (d) => base44.entities.IBQuestion.create(d),
+    onSuccess: () => {
+      qc.invalidateQueries(["ibQuestions"]);
+      setIbq({ question_text: "", question_type: "multiple_choice", paper: "Paper 1", cefr_level: "B1", ib_theme: "Identities", topic: "", options: ["","","",""], correct_answer: "", mark_scheme: "", difficulty: 3 });
+      showSuccess("IB question added!");
+    }
+  });
+
+  const generateGrammarAI = async () => {
+    if (!grammar.title) return;
+    setGenerating(true);
+    const result = await base44.integrations.Core.InvokeLLM({
+      prompt: `Write a comprehensive IB German grammar lesson for the topic: "${grammar.title}" at CEFR level ${grammar.cefr_level}.
+Include:
+- Clear explanation with rules
+- Conjugation tables or declension tables where relevant
+- 3-5 example sentences with translations
+- Common mistakes to avoid
+- IB exam tips
+Format in clean markdown with headers and tables. Do NOT use pipe separator lines outside of tables.`,
+      response_json_schema: {
+        type: "object",
+        properties: {
+          summary: { type: "string" },
+          content_markdown: { type: "string" },
+          key_rules: { type: "array", items: { type: "string" } },
+          common_mistakes: { type: "array", items: { type: "string" } }
+        }
+      }
+    });
+    setGrammar(g => ({
+      ...g,
+      summary: result.summary || g.summary,
+      content_markdown: result.content_markdown || g.content_markdown,
+      key_rules: (result.key_rules || []).join("\n"),
+      common_mistakes: (result.common_mistakes || []).join("\n")
+    }));
+    setGenerating(false);
+  };
+
+  const card = cn("rounded-2xl p-6 ring-1", isDark ? "bg-slate-900 ring-slate-800" : "bg-white ring-slate-200");
+  const label = cn("text-xs font-medium mb-1.5 block uppercase tracking-wider", isDark ? "text-slate-400" : "text-slate-500");
+  const inputCls = cn("rounded-xl", isDark ? "bg-slate-800 border-slate-700 text-white placeholder:text-slate-500" : "");
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 overflow-y-auto py-8 px-4">
-      <div className={cn("w-full max-w-3xl rounded-2xl ring-1 overflow-hidden", isDark ? "bg-slate-900 ring-slate-700" : "bg-white ring-slate-200")}>
-        {/* Toolbar */}
-        <div className={cn("flex items-center justify-between px-6 py-4 border-b", isDark ? "border-slate-800" : "border-slate-200")}>
-          <h2 className={cn("font-bold text-lg", isDark ? "text-white" : "text-slate-900")}>
-            Student Report: {user.full_name || user.email}
-          </h2>
-          <div className="flex items-center gap-2">
-            <Button onClick={handlePrint} className="rounded-xl bg-blue-500 hover:bg-blue-600 gap-2">
-              <Printer className="w-4 h-4" /> Print / Save PDF
-            </Button>
-            <Button variant="ghost" size="icon" onClick={onClose} className={cn("rounded-xl", isDark ? "text-slate-400" : "")}>
-              <X className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
-
-        {/* Printable content */}
-        <div className="p-6 overflow-y-auto max-h-[80vh]">
-          <div ref={printRef}>
-            {/* Header */}
-            <h1 style={{fontSize:'22px',fontWeight:'700',margin:'0 0 4px'}}>{user.full_name || "Student"}</h1>
-            <div className="meta" style={{color:'#64748b',fontSize:'13px',marginBottom:'20px'}}>
-              {user.email} &nbsp;·&nbsp; CEFR Level: <strong>{settings?.cefr_level || "—"}</strong> &nbsp;·&nbsp; Report generated: {new Date().toLocaleDateString()}
-            </div>
-
-            {/* Stats */}
-            <h2>Performance Summary</h2>
-            <div className="stats-grid" style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'12px',margin:'16px 0'}}>
-              {[
-                { label: "Study Time", value: `${totalMinutes} min` },
-                { label: "Lessons Completed", value: completedLessons },
-                { label: "Average Score", value: `${avgScore}%` },
-                { label: "Vocab Mastered", value: masteredVocab },
-                { label: "Grammar Errors Logged", value: errors.length },
-                { label: "Current Level", value: settings?.cefr_level || "—" },
-              ].map(s => (
-                <div key={s.label} style={{background:'#f8fafc',border:'1px solid #e2e8f0',borderRadius:'10px',padding:'12px 16px'}}>
-                  <div style={{fontSize:'22px',fontWeight:'700',color:'#0f172a'}}>{s.value}</div>
-                  <div style={{fontSize:'11px',color:'#94a3b8',marginTop:'2px'}}>{s.label}</div>
-                </div>
-              ))}
-            </div>
-
-            {/* Grammar Skill Scores */}
-            {(settings?.grammar_accuracy_score || settings?.vocab_retention_score) && (
-              <>
-                <h2>Skill Scores</h2>
-                <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'12px',marginBottom:'16px'}}>
-                  {[
-                    { label: "Grammar Accuracy", val: settings?.grammar_accuracy_score },
-                    { label: "Vocab Retention", val: settings?.vocab_retention_score },
-                    { label: "Pronunciation", val: settings?.pronunciation_score },
-                  ].filter(s => s.val).map(s => (
-                    <div key={s.label} style={{background:'#f8fafc',border:'1px solid #e2e8f0',borderRadius:'10px',padding:'12px 16px'}}>
-                      <div style={{fontSize:'22px',fontWeight:'700',color:'#3b82f6'}}>{s.val}%</div>
-                      <div style={{fontSize:'11px',color:'#94a3b8',marginTop:'2px'}}>{s.label}</div>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-
-            {/* Radar chart */}
-            {radarData.some(r => r.value > 0) && (
-              <div className={cn("rounded-xl ring-1 p-4 mb-4", isDark ? "ring-slate-800" : "ring-slate-200")}>
-                <h3 className={cn("text-sm font-semibold mb-3", isDark ? "text-white" : "text-slate-900")}>Skills Radar</h3>
-                <ResponsiveContainer width="100%" height={200}>
-                  <RadarChart data={radarData}>
-                    <PolarGrid stroke={isDark ? "#334155" : "#e2e8f0"} />
-                    <PolarAngleAxis dataKey="skill" tick={{ fontSize: 11, fill: isDark ? "#94a3b8" : "#64748b" }} />
-                    <PolarRadiusAxis domain={[0, 100]} tick={{ fontSize: 9 }} />
-                    <Radar dataKey="value" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.3} />
-                    <Tooltip />
-                  </RadarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-
-            {/* Error Pattern Analysis */}
-            {errorData.length > 0 && (
-              <>
-                <h2 style={{fontSize:'16px',fontWeight:'600',margin:'20px 0 10px',color:'#334155'}}>Grammar Error Pattern Analysis</h2>
-                <div style={{border:'1px solid #e2e8f0',borderRadius:'10px',padding:'16px',marginBottom:'16px'}}>
-                  {errorData.map((e, i) => (
-                    <div key={i} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'6px 0',fontSize:'12px',borderBottom:'1px solid #f1f5f9'}}>
-                      <span style={{color:'#475569',width:'130px'}}>{e.subject}</span>
-                      <div style={{flex:1,margin:'0 12px',background:'#f1f5f9',borderRadius:'4px',height:'8px',overflow:'hidden'}}>
-                        <div style={{height:'100%',background:'#f43f5e',borderRadius:'4px',width:`${(e.count/maxErrorCount)*100}%`}} />
-                      </div>
-                      <span style={{fontWeight:'600',color:'#f43f5e',width:'24px',textAlign:'right'}}>{e.count}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className={cn("rounded-xl ring-1 p-4 mb-4", isDark ? "ring-slate-800" : "ring-slate-200")}>
-                  <h3 className={cn("text-sm font-semibold mb-3", isDark ? "text-white" : "text-slate-900")}>Error Distribution Chart</h3>
-                  <ResponsiveContainer width="100%" height={180}>
-                    <BarChart data={errorData} layout="vertical" margin={{ left: 0, right: 8 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "#1e293b" : "#f1f5f9"} horizontal={false} />
-                      <XAxis type="number" tick={{ fontSize: 10, fill: isDark ? "#94a3b8" : "#94a3b8" }} />
-                      <YAxis dataKey="subject" type="category" tick={{ fontSize: 10, fill: isDark ? "#94a3b8" : "#64748b" }} width={80} />
-                      <Tooltip contentStyle={{ background: isDark ? "#0f172a" : "#fff", border: "none", borderRadius: 8 }} />
-                      <Bar dataKey="count" fill="#f43f5e" radius={[0, 4, 4, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </>
-            )}
-
-            {/* Study time by type */}
-            {lessonData.length > 0 && (
-              <>
-                <h2 style={{fontSize:'16px',fontWeight:'600',margin:'20px 0 10px',color:'#334155'}}>Study Activity</h2>
-                <div className={cn("rounded-xl ring-1 p-4 mb-4", isDark ? "ring-slate-800" : "ring-slate-200")}>
-                  <h3 className={cn("text-sm font-semibold mb-3", isDark ? "text-white" : "text-slate-900")}>Time by Lesson Type (minutes)</h3>
-                  <ResponsiveContainer width="100%" height={160}>
-                    <BarChart data={lessonData} margin={{ left: -20 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "#1e293b" : "#f1f5f9"} />
-                      <XAxis dataKey="name" tick={{ fontSize: 10, fill: isDark ? "#94a3b8" : "#64748b" }} />
-                      <YAxis tick={{ fontSize: 10 }} />
-                      <Tooltip contentStyle={{ background: isDark ? "#0f172a" : "#fff", border: "none", borderRadius: 8 }} />
-                      <Bar dataKey="minutes" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </>
-            )}
-
-            {/* Vocabulary */}
-            <h2 style={{fontSize:'16px',fontWeight:'600',margin:'20px 0 10px',color:'#334155'}}>Vocabulary Progress</h2>
-            <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'8px',marginBottom:'16px'}}>
-              {[
-                { label: "New", key: "new", color: "#94a3b8" },
-                { label: "Learning", key: "learning", color: "#60a5fa" },
-                { label: "Review", key: "review", color: "#fbbf24" },
-                { label: "Mastered", key: "mastered", color: "#34d399" },
-              ].map(s => (
-                <div key={s.key} style={{background:'#f8fafc',border:'1px solid #e2e8f0',borderRadius:'8px',padding:'8px',textAlign:'center'}}>
-                  <div style={{width:'10px',height:'10px',borderRadius:'50%',background:s.color,margin:'0 auto 6px'}} />
-                  <div style={{fontSize:'20px',fontWeight:'700',color:'#0f172a'}}>{vocabStatus[s.key]}</div>
-                  <div style={{fontSize:'11px',color:'#94a3b8'}}>{s.label}</div>
-                </div>
-              ))}
-            </div>
-
-            {/* Weak areas */}
-            {settings?.weakest_areas?.length > 0 && (
-              <>
-                <h2 style={{fontSize:'16px',fontWeight:'600',margin:'20px 0 8px',color:'#334155'}}>Identified Weak Areas</h2>
-                <div style={{display:'flex',flexWrap:'wrap',gap:'6px',marginBottom:'16px'}}>
-                  {settings.weakest_areas.map(a => (
-                    <span key={a} style={{background:'#fef2f2',color:'#ef4444',fontSize:'12px',padding:'3px 10px',borderRadius:'6px'}}>{a}</span>
-                  ))}
-                </div>
-              </>
-            )}
-
-            {/* Recent lessons */}
-            {lessons.length > 0 && (
-              <>
-                <h2 style={{fontSize:'16px',fontWeight:'600',margin:'20px 0 10px',color:'#334155'}}>Recent Lessons</h2>
-                <div style={{border:'1px solid #e2e8f0',borderRadius:'10px',overflow:'hidden'}}>
-                  {lessons.slice(0, 10).map((l, i) => (
-                    <div key={i} style={{display:'flex',justifyContent:'space-between',fontSize:'12px',padding:'7px 12px',background: i%2===0?'#f8fafc':'#fff',borderBottom:'1px solid #f1f5f9'}}>
-                      <span style={{color:'#475569'}}>{l.lesson_type} — {l.topic || l.cefr_level}</span>
-                      <span style={{color: l.score>=80?'#10b981':l.score>=60?'#f59e0b':'#ef4444', fontWeight:'600'}}>{l.score ?? "—"}%</span>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-
-            <p style={{fontSize:'11px',color:'#94a3b8',marginTop:'24px',textAlign:'center'}}>
-               {new Date().toLocaleDateString()}
-            </p>
-          </div>
-        </div>
+    <div className="space-y-6">
+      <div>
+        <h2 className={cn("text-xl font-bold", isDark ? "text-white" : "text-slate-900")}>Add Learning Content</h2>
+        <p className={cn("text-sm mt-1", isDark ? "text-slate-400" : "text-slate-500")}>Add vocabulary, grammar notes, and exam questions for students</p>
       </div>
+
+      {success && (
+        <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-emerald-500/10 text-emerald-500 text-sm font-medium">
+          <CheckCircle2 className="w-4 h-4" /> {success}
+        </div>
+      )}
+
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList className={cn("rounded-xl", isDark ? "bg-slate-800" : "")}>
+          <TabsTrigger value="vocab" className="rounded-lg gap-1.5"><BookOpen className="w-3.5 h-3.5" /> Vocabulary</TabsTrigger>
+          <TabsTrigger value="grammar" className="rounded-lg gap-1.5"><Languages className="w-3.5 h-3.5" /> Grammar Note</TabsTrigger>
+          <TabsTrigger value="ibq" className="rounded-lg gap-1.5"><GraduationCap className="w-3.5 h-3.5" /> IB Question</TabsTrigger>
+        </TabsList>
+
+        {/* VOCABULARY */}
+        <TabsContent value="vocab" className="mt-5">
+          <div className={card}>
+            <h3 className={cn("font-semibold mb-5", isDark ? "text-white" : "text-slate-900")}>Add Vocabulary Word</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className={label}>German Word *</label>
+                <Input value={vocab.german_word} onChange={e => setVocab(v=>({...v, german_word: e.target.value}))} placeholder="e.g. das Haus" className={inputCls} />
+              </div>
+              <div>
+                <label className={label}>English Translation *</label>
+                <Input value={vocab.english_translation} onChange={e => setVocab(v=>({...v, english_translation: e.target.value}))} placeholder="e.g. the house" className={inputCls} />
+              </div>
+              <div>
+                <label className={label}>Gender</label>
+                <Select value={vocab.gender} onValueChange={v => setVocab(s=>({...s, gender: v}))}>
+                  <SelectTrigger className={cn("rounded-xl", isDark ? "bg-slate-800 border-slate-700 text-white" : "")}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {["der","die","das","n/a"].map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className={label}>Word Type</label>
+                <Select value={vocab.word_type} onValueChange={v => setVocab(s=>({...s, word_type: v}))}>
+                  <SelectTrigger className={cn("rounded-xl", isDark ? "bg-slate-800 border-slate-700 text-white" : "")}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {["noun","verb","adjective","adverb","preposition","conjunction","pronoun","other"].map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className={label}>CEFR Level</label>
+                <Select value={vocab.cefr_level} onValueChange={v => setVocab(s=>({...s, cefr_level: v}))}>
+                  <SelectTrigger className={cn("rounded-xl", isDark ? "bg-slate-800 border-slate-700 text-white" : "")}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {["A1","A2","B1","B2"].map(l => <SelectItem key={l} value={l}>{l}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className={label}>Tags (comma separated)</label>
+                <Input value={vocab.tags} onChange={e => setVocab(v=>({...v, tags: e.target.value}))} placeholder="e.g. travel, food, school" className={inputCls} />
+              </div>
+              <div className="md:col-span-2">
+                <label className={label}>Example Sentence (German)</label>
+                <Input value={vocab.example_sentence} onChange={e => setVocab(v=>({...v, example_sentence: e.target.value}))} placeholder="e.g. Das Haus ist groß." className={inputCls} />
+              </div>
+              <div className="md:col-span-2">
+                <label className={label}>Example Translation (English)</label>
+                <Input value={vocab.example_translation} onChange={e => setVocab(v=>({...v, example_translation: e.target.value}))} placeholder="e.g. The house is big." className={inputCls} />
+              </div>
+            </div>
+            <Button
+              className="mt-5 rounded-xl bg-blue-500 hover:bg-blue-600"
+              disabled={!vocab.german_word || !vocab.english_translation || addVocab.isPending}
+              onClick={() => addVocab.mutate({ ...vocab, tags: vocab.tags ? vocab.tags.split(",").map(t=>t.trim()) : [] })}
+            >
+              {addVocab.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />}
+              Add Word
+            </Button>
+          </div>
+        </TabsContent>
+
+        {/* GRAMMAR NOTE */}
+        <TabsContent value="grammar" className="mt-5">
+          <div className={card}>
+            <h3 className={cn("font-semibold mb-5", isDark ? "text-white" : "text-slate-900")}>Add Grammar Note</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className={label}>Topic Title *</label>
+                <Input value={grammar.title} onChange={e => setGrammar(g=>({...g, title: e.target.value}))} placeholder="e.g. Akkusativ Case" className={inputCls} />
+              </div>
+              <div>
+                <label className={label}>CEFR Level</label>
+                <Select value={grammar.cefr_level} onValueChange={v => setGrammar(g=>({...g, cefr_level: v}))}>
+                  <SelectTrigger className={cn("rounded-xl", isDark ? "bg-slate-800 border-slate-700 text-white" : "")}><SelectValue /></SelectTrigger>
+                  <SelectContent>{["A1","A2","B1","B2"].map(l => <SelectItem key={l} value={l}>{l}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className={label}>IB Relevance</label>
+                <Select value={grammar.ib_relevance} onValueChange={v => setGrammar(g=>({...g, ib_relevance: v}))}>
+                  <SelectTrigger className={cn("rounded-xl", isDark ? "bg-slate-800 border-slate-700 text-white" : "")}><SelectValue /></SelectTrigger>
+                  <SelectContent>{["core","important","advanced"].map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className={label}>Summary (one line)</label>
+                <Input value={grammar.summary} onChange={e => setGrammar(g=>({...g, summary: e.target.value}))} placeholder="Brief summary" className={inputCls} />
+              </div>
+              <div className="md:col-span-2 flex items-center justify-between">
+                <label className={label}>Full Content (Markdown)</label>
+                <Button size="sm" variant="outline" onClick={generateGrammarAI}
+                  disabled={!grammar.title || generating}
+                  className={cn("rounded-xl text-xs h-7 gap-1.5", isDark ? "border-slate-700 text-slate-300" : "")}>
+                  {generating ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                  Generate with AI
+                </Button>
+              </div>
+              <div className="md:col-span-2">
+                <Textarea value={grammar.content_markdown} onChange={e => setGrammar(g=>({...g, content_markdown: e.target.value}))}
+                  placeholder="Write the lesson content in Markdown. Use ## for headers, | for tables, etc."
+                  rows={10} className={cn("rounded-xl font-mono text-xs", isDark ? "bg-slate-800 border-slate-700 text-white" : "")} />
+              </div>
+              <div>
+                <label className={label}>Key Rules (one per line)</label>
+                <Textarea value={grammar.key_rules} onChange={e => setGrammar(g=>({...g, key_rules: e.target.value}))}
+                  placeholder="Rule 1&#10;Rule 2&#10;Rule 3" rows={4} className={cn("rounded-xl text-xs", isDark ? "bg-slate-800 border-slate-700 text-white" : "")} />
+              </div>
+              <div>
+                <label className={label}>Common Mistakes (one per line)</label>
+                <Textarea value={grammar.common_mistakes} onChange={e => setGrammar(g=>({...g, common_mistakes: e.target.value}))}
+                  placeholder="Mistake 1&#10;Mistake 2" rows={4} className={cn("rounded-xl text-xs", isDark ? "bg-slate-800 border-slate-700 text-white" : "")} />
+              </div>
+            </div>
+            <Button
+              className="mt-5 rounded-xl bg-emerald-500 hover:bg-emerald-600"
+              disabled={!grammar.title || !grammar.content_markdown || addGrammar.isPending}
+              onClick={() => addGrammar.mutate({
+                ...grammar,
+                slug: grammar.title.toLowerCase().replace(/\s+/g, "-"),
+                key_rules: grammar.key_rules ? grammar.key_rules.split("\n").filter(Boolean) : [],
+                common_mistakes: grammar.common_mistakes ? grammar.common_mistakes.split("\n").filter(Boolean) : [],
+              })}
+            >
+              {addGrammar.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />}
+              Save Grammar Note
+            </Button>
+          </div>
+        </TabsContent>
+
+        {/* IB QUESTION */}
+        <TabsContent value="ibq" className="mt-5">
+          <div className={card}>
+            <h3 className={cn("font-semibold mb-5", isDark ? "text-white" : "text-slate-900")}>Add IB Practice Question</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <label className={label}>Question Text *</label>
+                <Textarea value={ibq.question_text} onChange={e => setIbq(q=>({...q, question_text: e.target.value}))}
+                  placeholder="Write the question in German or English..." rows={3} className={cn("rounded-xl", isDark ? "bg-slate-800 border-slate-700 text-white" : "")} />
+              </div>
+              <div>
+                <label className={label}>Question Type</label>
+                <Select value={ibq.question_type} onValueChange={v => setIbq(q=>({...q, question_type: v}))}>
+                  <SelectTrigger className={cn("rounded-xl", isDark ? "bg-slate-800 border-slate-700 text-white" : "")}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {["multiple_choice","fill_blank","short_answer","essay_prompt","text_analysis","listening_comp","gap_fill"].map(t => <SelectItem key={t} value={t}>{t.replace(/_/g," ")}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className={label}>Paper</label>
+                <Select value={ibq.paper} onValueChange={v => setIbq(q=>({...q, paper: v}))}>
+                  <SelectTrigger className={cn("rounded-xl", isDark ? "bg-slate-800 border-slate-700 text-white" : "")}><SelectValue /></SelectTrigger>
+                  <SelectContent>{["Paper 1","Paper 2","Oral","Writing Task","Ab Initio"].map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className={label}>CEFR Level</label>
+                <Select value={ibq.cefr_level} onValueChange={v => setIbq(q=>({...q, cefr_level: v}))}>
+                  <SelectTrigger className={cn("rounded-xl", isDark ? "bg-slate-800 border-slate-700 text-white" : "")}><SelectValue /></SelectTrigger>
+                  <SelectContent>{["A1","A2","B1","B2"].map(l => <SelectItem key={l} value={l}>{l}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className={label}>IB Theme</label>
+                <Select value={ibq.ib_theme} onValueChange={v => setIbq(q=>({...q, ib_theme: v}))}>
+                  <SelectTrigger className={cn("rounded-xl", isDark ? "bg-slate-800 border-slate-700 text-white" : "")}><SelectValue /></SelectTrigger>
+                  <SelectContent>{["Identities","Experiences","Human Ingenuity","Social Organisation","Sharing the Planet"].map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+
+              {ibq.question_type === "multiple_choice" && (
+                <div className="md:col-span-2 space-y-2">
+                  <label className={label}>Answer Options</label>
+                  {ibq.options.map((opt, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <span className={cn("text-xs font-bold w-5", isDark ? "text-slate-400" : "text-slate-500")}>{["A","B","C","D"][i]}.</span>
+                      <Input value={opt} onChange={e => setIbq(q=>({...q, options: q.options.map((o,j)=>j===i?e.target.value:o)}))}
+                        placeholder={`Option ${["A","B","C","D"][i]}`} className={inputCls} />
+                    </div>
+                  ))}
+                  <div>
+                    <label className={label}>Correct Answer (A/B/C/D)</label>
+                    <Select value={ibq.correct_answer} onValueChange={v => setIbq(q=>({...q, correct_answer: v}))}>
+                      <SelectTrigger className={cn("rounded-xl w-28", isDark ? "bg-slate-800 border-slate-700 text-white" : "")}><SelectValue placeholder="Correct" /></SelectTrigger>
+                      <SelectContent>{["A","B","C","D"].map(l => <SelectItem key={l} value={l}>{l}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
+
+              {ibq.question_type !== "multiple_choice" && (
+                <div className="md:col-span-2">
+                  <label className={label}>Model Answer / Correct Answer</label>
+                  <Textarea value={ibq.correct_answer} onChange={e => setIbq(q=>({...q, correct_answer: e.target.value}))}
+                    placeholder="Model answer or correct response..." rows={3} className={cn("rounded-xl", isDark ? "bg-slate-800 border-slate-700 text-white" : "")} />
+                </div>
+              )}
+
+              <div className="md:col-span-2">
+                <label className={label}>Mark Scheme / Notes</label>
+                <Textarea value={ibq.mark_scheme} onChange={e => setIbq(q=>({...q, mark_scheme: e.target.value}))}
+                  placeholder="What marks are awarded for..." rows={2} className={cn("rounded-xl", isDark ? "bg-slate-800 border-slate-700 text-white" : "")} />
+              </div>
+            </div>
+            <Button
+              className="mt-5 rounded-xl bg-violet-500 hover:bg-violet-600"
+              disabled={!ibq.question_text || addIbq.isPending}
+              onClick={() => addIbq.mutate({ ...ibq, source: "Teacher-created" })}
+            >
+              {addIbq.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />}
+              Save Question
+            </Button>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

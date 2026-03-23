@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { cn } from "@/lib/utils";
 import { Users, Search, Printer, BarChart2 } from "lucide-react";
@@ -20,6 +20,7 @@ export default function AdminDashboard({ isDark }) {
   const [showReport, setShowReport] = useState(false);
   const [groupFilter, setGroupFilter] = useState("all");
   const [showGroupReport, setShowGroupReport] = useState(false);
+  const queryClient = useQueryClient();
 
   const { data: allUsers = [] } = useQuery({
     queryKey: ["adminUsers"],
@@ -49,15 +50,18 @@ export default function AdminDashboard({ isDark }) {
   // Exclude teachers (admins) from student analytics
   const students = allUsers.filter(u => u.role !== "admin");
   const studentEmails = new Set(students.map(u => u.email));
-  const studentSettings = allSettings.filter(s => studentEmails.has(s.created_by));
-  const studentLessons = allLessons.filter(l => studentEmails.has(l.created_by));
-  const studentErrors = allErrors.filter(e => studentEmails.has(e.created_by));
-  const studentVocab = allVocab.filter(v => studentEmails.has(v.created_by));
 
-  const getStudentSettings = (email) => studentSettings.find(s => s.created_by === email);
-  const getStudentLessons = (email) => studentLessons.filter(l => l.created_by === email);
-  const getStudentErrors = (email) => studentErrors.filter(e => e.created_by === email);
-  const getStudentVocab = (email) => studentVocab.filter(v => v.created_by === email);
+  // Match by user_email field (explicit student tag) OR created_by (for real student-created records)
+  const getEmail = (r) => r.user_email || r.created_by;
+  const studentSettings = allSettings.filter(s => studentEmails.has(getEmail(s)));
+  const studentLessons = allLessons.filter(l => studentEmails.has(getEmail(l)));
+  const studentErrors = allErrors.filter(e => studentEmails.has(getEmail(e)));
+  const studentVocab = allVocab.filter(v => studentEmails.has(getEmail(v)));
+
+  const getStudentSettings = (email) => studentSettings.find(s => getEmail(s) === email);
+  const getStudentLessons = (email) => studentLessons.filter(l => getEmail(l) === email);
+  const getStudentErrors = (email) => studentErrors.filter(e => getEmail(e) === email);
+  const getStudentVocab = (email) => studentVocab.filter(v => getEmail(v) === email);
 
   // Filter students by year group and search
   const filteredStudents = students.filter(u => {
@@ -216,6 +220,14 @@ export default function AdminDashboard({ isDark }) {
                     errors={getStudentErrors(selectedStudent.email)}
                     vocab={getStudentVocab(selectedStudent.email)}
                     isDark={isDark}
+                    onDeleted={() => {
+                      setSelectedStudent(null);
+                      queryClient.invalidateQueries({ queryKey: ["adminUsers"] });
+                      queryClient.invalidateQueries({ queryKey: ["adminAllSettings"] });
+                      queryClient.invalidateQueries({ queryKey: ["adminAllLessons"] });
+                      queryClient.invalidateQueries({ queryKey: ["adminAllErrors"] });
+                      queryClient.invalidateQueries({ queryKey: ["adminAllVocab"] });
+                    }}
                   />
                 </div>
               ) : (

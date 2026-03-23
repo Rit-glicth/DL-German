@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { cn } from "@/lib/utils";
-import { Youtube, Newspaper, Laugh, Film, Music, Tv, X } from "lucide-react";
+import { Youtube, Newspaper, Laugh, Film, Music, Tv } from "lucide-react";
 
 const CATEGORIES = [
   { id: "cartoons", label: "Cartoons & Animation", icon: Tv, color: "text-purple-500", bg: "bg-purple-500/10" },
@@ -64,7 +64,6 @@ const MEDIA = {
 
 export default function GermanMedia({ isDark }) {
   const [activeCategory, setActiveCategory] = useState("cartoons");
-  const [playing, setPlaying] = useState(null); // youtube_id or null
 
   const cat = CATEGORIES.find(c => c.id === activeCategory);
   const items = MEDIA[activeCategory] || [];
@@ -88,7 +87,7 @@ export default function GermanMedia({ isDark }) {
           return (
             <button
               key={c.id}
-              onClick={() => { setActiveCategory(c.id); setPlaying(null); }}
+              onClick={() => { setActiveCategory(c.id); }}
               className={cn(
                 "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ring-1",
                 isActive
@@ -103,30 +102,6 @@ export default function GermanMedia({ isDark }) {
         })}
       </div>
 
-      {/* Inline player */}
-      {playing && (
-        <div className={cn("rounded-2xl overflow-hidden ring-1", isDark ? "bg-slate-900 ring-slate-800" : "bg-slate-900 ring-slate-700")}>
-          <div className="flex items-center justify-between px-4 py-2">
-            <p className="text-white text-sm font-medium truncate">
-              {items.find(i => i.youtube_id === playing)?.title || "Now Playing"}
-            </p>
-            <button onClick={() => setPlaying(null)} className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10">
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-          <div className="relative w-full" style={{ paddingTop: "56.25%" }}>
-            <iframe
-              key={playing}
-              src={`https://www.youtube-nocookie.com/embed/${playing}?autoplay=1&rel=0`}
-              className="absolute inset-0 w-full h-full"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              title="German Media Player"
-            />
-          </div>
-        </div>
-      )}
-
       {/* Section header */}
       <div className={cn("flex items-center gap-3 p-4 rounded-2xl ring-1", isDark ? "bg-slate-900 ring-slate-800" : "bg-white ring-slate-200")}>
         <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center", cat?.bg)}>
@@ -134,38 +109,35 @@ export default function GermanMedia({ isDark }) {
         </div>
         <div>
           <h2 className={cn("font-bold text-lg", isDark ? "text-white" : "text-slate-900")}>{cat?.label}</h2>
-          <p className={cn("text-xs", isDark ? "text-slate-400" : "text-slate-500")}>{items.length} videos — click any card to play inline</p>
+          <p className={cn("text-xs", isDark ? "text-slate-400" : "text-slate-500")}>{items.length} videos — click any card to watch on YouTube</p>
         </div>
       </div>
 
       {/* Cards grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {items.map((item, i) => {
-          const isPlaying = playing === item.youtube_id;
-          return (
-            <button
-              key={i}
-              onClick={() => setPlaying(isPlaying ? null : item.youtube_id)}
-              className={cn(
-                "flex items-start gap-4 p-4 rounded-2xl ring-1 transition-all group text-left",
-                isPlaying
-                  ? isDark ? "bg-red-500/10 ring-red-500/40" : "bg-red-50 ring-red-300"
-                  : isDark
-                  ? "bg-slate-900 ring-slate-800 hover:ring-red-500/40 hover:bg-slate-800"
-                  : "bg-white ring-slate-200 hover:ring-red-300 hover:shadow-sm"
-              )}
-            >
-              <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors", isPlaying ? "bg-red-500/20" : "bg-red-500/10 group-hover:bg-red-500/20")}>
-                <Youtube className="w-6 h-6 text-red-500" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className={cn("text-sm font-semibold leading-snug", isDark ? "text-white" : "text-slate-900")}>{item.title}</p>
-                <p className={cn("text-xs mt-1 leading-relaxed", isDark ? "text-slate-400" : "text-slate-500")}>{item.desc}</p>
-                {isPlaying && <span className="text-xs text-red-500 font-medium mt-1 block">Now playing ▲</span>}
-              </div>
-            </button>
-          );
-        })}
+        {items.map((item, i) => (
+          <a
+            key={i}
+            href={`https://www.youtube.com/results?search_query=${encodeURIComponent(item.title)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn(
+              "flex items-start gap-4 p-4 rounded-2xl ring-1 transition-all group text-left",
+              isDark
+                ? "bg-slate-900 ring-slate-800 hover:ring-red-500/40 hover:bg-slate-800"
+                : "bg-white ring-slate-200 hover:ring-red-300 hover:shadow-sm"
+            )}
+          >
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-red-500/10 group-hover:bg-red-500/20 transition-colors">
+              <Youtube className="w-6 h-6 text-red-500" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className={cn("text-sm font-semibold leading-snug", isDark ? "text-white" : "text-slate-900")}>{item.title}</p>
+              <p className={cn("text-xs mt-1 leading-relaxed", isDark ? "text-slate-400" : "text-slate-500")}>{item.desc}</p>
+              <span className="text-xs text-red-500 font-medium mt-1 block opacity-0 group-hover:opacity-100 transition-opacity">Watch on YouTube →</span>
+            </div>
+          </a>
+        ))}
       </div>
     </div>
   );

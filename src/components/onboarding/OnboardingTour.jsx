@@ -86,8 +86,17 @@ export default function OnboardingTour({ isDark, onComplete }) {
   const isFirst = step === 0;
   const isCentered = current.position === "center";
 
-  const finish = () => {
+  const finish = async () => {
     localStorage.setItem("onboarding_tour_done", "1");
+    // Mark onboarding as fully complete in DB
+    try {
+      const { base44 } = await import("@/api/base44Client");
+      const user = await base44.auth.me();
+      const settings = await base44.entities.UserSettings.filter({ created_by: user.email });
+      if (settings.length > 0) {
+        await base44.entities.UserSettings.update(settings[0].id, { onboarding_complete: true });
+      }
+    } catch (e) {}
     onComplete?.();
   };
 

@@ -122,13 +122,15 @@ export default function PlacementTest({ isDark }) {
       });
     }
     queryClient.invalidateQueries({ queryKey: ["userSettings"] });
+    sessionStorage.setItem("onboarding_verified", "true");
     navigate(createPageUrl("Dashboard"));
   };
 
-  // Auto-confirm: save and redirect immediately after test ends without waiting for button press
+  // Auto-confirm: save and redirect after a short delay so the result screen is briefly visible
   React.useEffect(() => {
     if (phase === "result" && placedLevel && !saving) {
-      handleConfirm();
+      const t = setTimeout(() => handleConfirm(), 1500);
+      return () => clearTimeout(t);
     }
   }, [phase, placedLevel]);
 

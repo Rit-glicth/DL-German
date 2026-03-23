@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { cn } from "@/lib/utils";
 import { BookOpen, Languages, Flame, Clock } from "lucide-react";
@@ -12,6 +12,12 @@ import OnboardingTour from "../components/onboarding/OnboardingTour";
 
 export default function Dashboard({ isDark }) {
   const [showTour, setShowTour] = useState(false);
+  const queryClient = useQueryClient();
+
+  // Force fresh settings fetch when landing here (e.g. right after placement test)
+  useEffect(() => {
+    queryClient.invalidateQueries({ queryKey: ["userSettings"] });
+  }, []);
 
   const { data: settings, isLoading: settingsLoading } = useQuery({
     queryKey: ["userSettings"],
@@ -19,6 +25,7 @@ export default function Dashboard({ isDark }) {
       const list = await base44.entities.UserSettings.list();
       return list[0] || null;
     },
+    staleTime: 0,
   });
 
   useEffect(() => {

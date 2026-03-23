@@ -1,7 +1,9 @@
-import React from "react";
+import React, { useState } from "react";
 import { cn } from "@/lib/utils";
-import { Clock, BookOpen, AlertTriangle, Target, TrendingUp, Award, Calendar, BarChart2 } from "lucide-react";
+import { Clock, BookOpen, AlertTriangle, Target, TrendingUp, Award, Calendar, BarChart2, Trash2, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
+import { base44 } from "@/api/base44Client";
+import { Button } from "@/components/ui/button";
 import { RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 
 const ERROR_LABELS = {
@@ -21,7 +23,36 @@ const ERROR_LABELS = {
   other: "Other",
 };
 
-export default function StudentDetail({ user, settings, lessons, errors, vocab, isDark }) {
+export default function StudentDetail({ user, settings, lessons, errors, vocab, isDark, onDeleted }) {
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const handleDeleteStudent = async () => {
+    setDeleting(true);
+    const email = user.email;
+
+    // Fetch ALL records for this user fresh (not limited by what's in props)
+    const [allLessons, allErrors, allVocab, allSettings, allChats] = await Promise.all([
+      base44.entities.LessonProgress.filter({ created_by: email }),
+      base44.entities.GrammarError.filter({ created_by: email }),
+      base44.entities.UserVocabProgress.filter({ created_by: email }),
+      base44.entities.UserSettings.filter({ created_by: email }),
+      base44.entities.ChatHistory.filter({ created_by: email }),
+    ]);
+
+    await Promise.all([
+      ...allLessons.map(l => base44.entities.LessonProgress.delete(l.id)),
+      ...allErrors.map(e => base44.entities.GrammarError.delete(e.id)),
+      ...allVocab.map(v => base44.entities.UserVocabProgress.delete(v.id)),
+      ...allSettings.map(s => base44.entities.UserSettings.delete(s.id)),
+      ...allChats.map(c => base44.entities.ChatHistory.delete(c.id)),
+      base44.entities.User.delete(user.id),
+    ]);
+
+    setDeleting(false);
+    setConfirmDelete(false);
+    onDeleted?.();
+  };
   const totalMinutes = Math.round(lessons.reduce((s, l) => s + (l.time_spent_seconds || 0) / 60, 0));
   const masteredVocab = vocab.filter(v => v.status === "mastered").length;
   const avgScore = lessons.length > 0
@@ -73,11 +104,32 @@ export default function StudentDetail({ user, settings, lessons, errors, vocab, 
             <h2 className={cn("text-xl font-bold", isDark ? "text-white" : "text-slate-900")}>{user.full_name || "Student"}</h2>
             <p className={cn("text-sm", isDark ? "text-slate-400" : "text-slate-500")}>{user.email}</p>
           </div>
-          {settings?.onboarding_complete ? (
-            <span className="text-xs bg-emerald-500/10 text-emerald-500 px-2.5 py-1 rounded-lg font-semibold">Active</span>
-          ) : (
-            <span className="text-xs bg-amber-500/10 text-amber-500 px-2.5 py-1 rounded-lg font-semibold">Not Onboarded</span>
-          )}
+          <div className="flex items-center gap-2">
+            {settings?.onboarding_complete ? (
+              <span className="text-xs bg-emerald-500/10 text-emerald-500 px-2.5 py-1 rounded-lg font-semibold">Active</span>
+            ) : (
+              <span className="text-xs bg-amber-500/10 text-amber-500 px-2.5 py-1 rounded-lg font-semibold">Not Onboarded</span>
+            )}
+            {!confirmDelete ? (
+              <Button size="sm" variant="outline" onClick={() => setConfirmDelete(true)}
+                className={cn("rounded-xl gap-1.5 border-rose-300 text-rose-500 hover:bg-rose-50", isDark ? "border-rose-800 hover:bg-rose-500/10" : "")}>
+                <Trash2 className="w-3.5 h-3.5" /> Delete Student
+              </Button>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className={cn("text-xs", isDark ? "text-slate-400" : "text-slate-500")}>Delete all data?</span>
+                <Button size="sm" onClick={handleDeleteStudent} disabled={deleting}
+                  className="rounded-xl bg-rose-500 hover:bg-rose-600 text-white h-7 px-3 text-xs gap-1">
+                  {deleting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                  Confirm
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setConfirmDelete(false)}
+                  className={cn("rounded-xl h-7 px-3 text-xs", isDark ? "border-slate-700 text-slate-300" : "")}>
+                  Cancel
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
         {settings?.weakest_areas?.length > 0 && (
           <div className="mt-3 pt-3 border-t" style={{ borderColor: isDark ? "#1e293b" : "#e2e8f0" }}>
